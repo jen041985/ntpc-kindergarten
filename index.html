@@ -267,55 +267,65 @@ function log(msg, type = "") {
     box.scrollTop = box.scrollHeight;
 }
 
-/* ── 頁面載入後的總初始化 ── */
+/* ── 統一啟動入口 ── */
 async function initData() {
-    // 1. 先執行環境檢查 (決定按鈕是否反灰)
+    // A. 優先執行環境檢查
     checkEnvironment();
 
-    // 2. 執行原有的資料載入邏輯
+    // B. 原有的 JSON 載入邏輯
     log("正在檢查本地是否有預存的 json 資料...");
     try {
         const response = await fetch('preschool-data.json');
         if (response.ok) {
-            allData = await response.json();
-            log(`✅ 已成功載入本地資料 (${allData.length} 筆)`, "success");
-            // 如果你有保留 populateDistricts，要在這裡呼叫
-            // populateDistricts(); 
+            const data = await response.json();
+            // 合併既有的非營利資料
+            scrapedData = data; 
+            log(`✅ 已成功載入資料庫 (${getAllData().length} 筆)`, "success");
             render();
         } else {
-            log("⚠️ 目前無預存資料庫檔案。");
-            document.getElementById('tbody').innerHTML = '<tr><td colspan="6" style="text-align:center; padding:50px; color:var(--ink-light)">目前無資料，請等待管理員同步。</td></tr>';
+            log("⚠️ 線上資料庫尚未更新，目前顯示預設資料。");
+            render(); // 至少畫出預設的非營利資料
         }
     } catch (e) {
-        log("提示：目前尚無存檔資料。");
+        log("提示：尚未上傳 JSON 資料庫。");
+        render();
     }
 }
 
-/* ── 環境判定與按鈕狀態控管 ── */
+// 🌟 全網頁載入後啟動
+window.onload = initData;
+
 function checkEnvironment() {
     const isLocal = window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost";
     const scrapeBtn = document.getElementById('scrape-btn');
     
+    console.log("環境檢查啟動，目前網址：", window.location.hostname);
+
+    if (!scrapeBtn) return;
+
     if (!isLocal) {
+        // 1. 禁用按鈕
         scrapeBtn.disabled = true;
-        scrapeBtn.style.backgroundColor = "#9898b0"; 
-        scrapeBtn.style.cursor = "not-allowed";
-        scrapeBtn.style.opacity = "0.6";
+        
+        // 2. 強制寫入反灰樣式 (加上 !important 確保蓋過原本的 CSS)
+        scrapeBtn.style.cssText = `
+            background-color: #9898b0 !important;
+            cursor: not-allowed !important;
+            opacity: 0.6 !important;
+            pointer-events: none !important;
+        `;
+        
+        // 3. 修改文字
         scrapeBtn.textContent = "僅限管理員同步資料";
-        scrapeBtn.title = "自動抓取功能需連接本地 Python 爬蟲引擎，線上版僅供查詢存檔資料。";
+        scrapeBtn.title = "線上環境不支援即時抓取，請下載 CSV 查看完整資料。";
         
         if (typeof log === "function") {
-            log("系統訊息：偵測到線上環境，已自動切換至「唯讀查詢模式」。", "success");
+            log("系統訊息：目前為線上唯讀模式，資料由管理員定期更新。", "success");
         }
     } else {
-        if (typeof log === "function") {
-            log("系統訊息：管理員模式已啟動，可執行自動抓取。");
-        }
+        console.log("偵測為本地環境，按鈕功能正常。");
     }
 }
-
-// 統一由 onload 觸發即可
-window.onload = initData;
 
 </script>
 </body>
