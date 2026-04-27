@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>新北市幼兒園名冊自動抓取系統</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ... (保留您原本精美的 CSS 樣式) ... */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#1a1a2e;--ink-muted:#5a5a7a;--ink-light:#9898b0;
+  --accent:#2e6da4;--accent-light:#e8f1f9;--accent-mid:#b5cfe8;
+  --bg:#f7f6f2;--surface:#ffffff;--border:#dddbd4;
+  --row-hover:#f0f6fc;
+}
+body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;padding:20px}
+.container{max-width:1100px;margin:0 auto;background:var(--surface);padding:30px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.05)}
+header{margin-bottom:30px;border-bottom:2px solid var(--bg);padding-bottom:20px}
+h1{font-size:24px;margin-bottom:10px;color:var(--ink)}
+.controls{display:flex;gap:15px;margin-bottom:25px;flex-wrap:wrap;align-items:center}
+select, input{padding:10px 15px;border:1px solid var(--border);border-radius:6px;font-size:15px;outline:none}
+select:focus, input:focus{border-color:var(--accent)}
+.btn-group{margin-left:auto;display:flex;gap:10px}
+button{padding:10px 20px;border-radius:6px;border:none;cursor:pointer;font-weight:500;transition:0.2s}
+.btn-scrape{background:var(--ink);color:white}
+.btn-scrape:hover{background:#333}
+.btn-download{background:var(--accent);color:white}
+.btn-download:hover{background:#245682}
+button:disabled{background:var(--ink-light);cursor:not-allowed}
+table{width:100%;border-collapse:collapse;margin-top:20px}
+th{text-align:left;background:var(--bg);padding:15px;font-weight:700;font-size:14px;color:var(--ink-muted)}
+td{padding:15px;border-bottom:1px solid var(--bg);font-size:15px}
+tr:hover{background:var(--row-hover)}
+.badge{padding:4px 8px;border-radius:4px;font-size:12px;font-weight:600}
+.log-box{background:#1e1e1e;color:#d4d4d4;padding:15px;border-radius:8px;font-family:monospace;font-size:13px;margin-top:20px;max-height:150px;overflow-y:auto}
+.log-box span{display:block;margin-bottom:4px}
+.success{color:#4ec9b0}
+.error{color:#f44747}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>新北市幼兒園資料採集器</h1>
+    <p style="color:var(--ink-muted)">透過 Python Selenium 自動從全國教保資訊網同步資料</p>
+  </header>
+
+  <div class="controls">
+    <input type="text" id="search" placeholder="搜尋園所名稱或地址..." oninput="render()">
+    <select id="districtFilter" onchange="render()">
+        <option value="">全部行政區</option>
+        <option value="板橋區">板橋區</option>
+        <option value="三重區">三重區</option>
+        <option value="中和區">中和區</option>
+        <option value="永和區">永和區</option>
+        <option value="新莊區">新莊區</option>
+        <option value="新店區">新店區</option>
+        <option value="土城區">土城區</option>
+        <option value="蘆洲區">蘆洲區</option>
+        <option value="樹林區">樹林區</option>
+        <option value="汐止區">汐止區</option>
+        <option value="三峽區">三峽區</option>
+        <option value="淡水區">淡水區</option>
+        <option value="鶯歌區">鶯歌區</option>
+        <option value="五股區">五股區</option>
+        <option value="泰山區">泰山區</option>
+        <option value="林口區">林口區</option>
+        <option value="深坑區">深坑區</option>
+        <option value="石碇區">石碇區</option>
+        <option value="坪林區">坪林區</option>
+        <option value="三芝區">三芝區</option>
+        <option value="石門區">石門區</option>
+        <option value="八里區">八里區</option>
+        <option value="平溪區">平溪區</option>
+        <option value="雙溪區">雙溪區</option>
+        <option value="貢寮區">貢寮區</option>
+        <option value="金山區">金山區</option>
+        <option value="萬里區">萬里區</option>
+        <option value="烏來區">烏來區</option>
+        <option value="瑞芳區">瑞芳區</option>
+    </select>
+    <select id="typeFilter" onchange="render()">
+        <option value="">全部類型</option>
+        <option value="公立">公立</option>
+        <option value="非營利">非營利</option>
+        <option value="準公共">準公共</option>
+        <option value="私立">私立</option>
+    </select>
+    
+    <div class="btn-group">
+        <button class="btn-scrape" id="scrape-btn" onclick="startScrape()">開始自動抓取 ↗</button>
+        <button class="btn-download" onclick="exportCSV()">下載 CSV 📥</button>
+    </div>
+  </div>
+
+  <div id="stats" style="margin-bottom:15px; font-weight:500"></div>
+
+  <table id="data-table">
+    <thead>
+      <tr>
+        <th width="80">序號</th>
+        <th width="100">類型</th>
+        <th width="100">行政區</th>
+        <th>園所名稱</th>
+        <th width="140">電話</th>
+        <th>地址</th>
+      </tr>
+    </thead>
+    <tbody id="tbody">
+      <tr><td colspan="6" style="text-align:center; padding:50px; color:var(--ink-light)">正在載入資料中...</td></tr>
+    </tbody>
+  </table>
+
+  <div class="log-box" id="log">
+    <span>> 系統就緒，等待指令...</span>
+  </div>
+</div>
+
+<script>
+/* ── 變數定義 ── */
+let allData = [];            // 存放所有抓到的資料
+let currentFilteredData = []; // 存放目前篩選過的資料 (供匯出使用)
+let isScraping = false;
+
+/* ── 初始化：載入本地 JSON 資料 ── */
+async function initData() {
+    log("正在檢查本地是否有預存的 json 資料...");
+    try {
+        const response = await fetch('preschool-data.json');
+        if (response.ok) {
+            allData = await response.json();
+            log(`✅ 已成功載入本地資料 (${allData.length} 筆)`, "success");
+            render();
+        } else {
+            log("⚠️ 本地無預存資料，請點擊「開始抓取」來同步資料。");
+            document.getElementById('tbody').innerHTML = '<tr><td colspan="6" style="text-align:center; padding:50px; color:var(--ink-light)">目前無資料，請點擊上方按鈕開始抓取</td></tr>';
+        }
+    } catch (e) {
+        log("提示：目前尚無存檔資料。");
+    }
+}
+
+/* ── 核心功能：開始抓取 ── */
+async function startScrape() {
+    if (isScraping) return;
+    isScraping = true;
+
+    const btn = document.getElementById('scrape-btn');
+    btn.disabled = true;
+    btn.textContent = '抓取中，請稍候...';
+
+    const selectedDistrict = document.getElementById('districtFilter').value;
+    const selectedType = document.getElementById('typeFilter').value;
+
+    log(`① 發送指令至 Python 後端...`);
+    log(`② 條件：${selectedDistrict || '全部'} / ${selectedType || '全部'}`);
+
+    try {
+        const response = await fetch('/api/scrape', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ district: selectedDistrict, type: selectedType })
+        });
+        
+        if (!response.ok) throw new Error('連線超時或 Python 伺服器未啟動');
+
+        const result = await response.json();
+        
+        // 更新資料集 (此處可決定是要「覆蓋」還是「新增」)
+        allData = result; 
+        
+        log(`✅ 抓取完成！共取得 ${allData.length} 筆資料`, "success");
+        render();
+
+    } catch (err) {
+        log(`❌ 錯誤：${err.message}`, "error");
+    } finally {
+        isScraping = false;
+        btn.disabled = false;
+        btn.textContent = '開始自動抓取 ↗';
+    }
+}
+
+/* ── 渲染表格 ── */
+function render() {
+    const search = document.getElementById('search').value.toLowerCase().trim();
+    const district = document.getElementById('districtFilter').value;
+    const type = document.getElementById('typeFilter').value;
+
+    const filtered = allData.filter(r => {
+        // 模糊比對防呆
+        const matchD = !district || (r.district || '').includes(district);
+        const matchT = !type || (r.type || '').includes(type);
+        const matchS = !search || (r.name||'').toLowerCase().includes(search) || (r.address||'').toLowerCase().includes(search);
+        return matchD && matchT && matchS;
+    });
+
+    currentFilteredData = filtered; // 存給匯出用
+
+    document.getElementById('stats').innerText = `顯示筆數：${filtered.length} / 總筆數：${allData.length}`;
+
+    const tbody = document.getElementById('tbody');
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px">查無符合條件的資料</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = filtered.map((r, i) => `
+        <tr>
+            <td style="color:var(--ink-light)">${i + 1}</td>
+            <td><span class="badge" style="background:var(--accent-light); color:var(--accent)">${r.type || '私立'}</span></td>
+            <td><b>${r.district || ''}</b></td>
+            <td>${r.name || ''}</td>
+            <td style="font-family:monospace">${r.tel || ''}</td>
+            <td style="font-size:13px; color:var(--ink-muted)">${r.address || ''}</td>
+        </tr>
+    `).join('');
+}
+
+/* ── 匯出 CSV (JSON 轉 CSV) ── */
+function exportCSV() {
+    if (currentFilteredData.length === 0) {
+        alert("無資料可供匯出");
+        return;
+    }
+
+    let csvContent = "\uFEFF類型,行政區,園所名稱,電話,地址\r\n";
+    
+    currentFilteredData.forEach(row => {
+        const format = (text) => {
+            let s = (text || "").toString().trim();
+            return s.includes(",") ? `"${s.replace(/"/g, '""')}"` : s;
+        };
+        const line = [format(row.type), format(row.district), format(row.name), format(row.tel), format(row.address)].join(",");
+        csvContent += line + "\r\n";
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `幼兒園名單_${new Date().toLocaleDateString()}.csv`;
+    link.click();
+}
+
+/* ── 日誌功能 ── */
+function log(msg, type = "") {
+    const box = document.getElementById('log');
+    const span = document.createElement('span');
+    if (type) span.className = type;
+    span.innerText = `> ${msg}`;
+    box.appendChild(span);
+    box.scrollTop = box.scrollHeight;
+}
+
+// 頁面載入後執行初始化
+window.onload = initData;
+
+</script>
+</body>
+</html>
