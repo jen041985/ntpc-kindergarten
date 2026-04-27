@@ -25,8 +25,21 @@ select:focus, input:focus{border-color:var(--accent)}
 button{padding:10px 20px;border-radius:6px;border:none;cursor:pointer;font-weight:500;transition:0.2s}
 .btn-scrape{background:var(--ink);color:white}
 .btn-scrape:hover{background:#333}
-.btn-download{background:var(--accent);color:white}
-.btn-download:hover{background:#245682}
+/* .btn-download{background:var(--accent);color:white}
+.btn-download:hover{background:#245682} */
+.btn-download {
+    background: #2e6da4;
+    color: white;
+    /* 增加一個微微的呼吸燈或陰影效果 */
+    box-shadow: 0 4px 10px rgba(46, 109, 164, 0.2);
+    transform: scale(1);
+    transition: all 0.3s ease;
+}
+
+.btn-download:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 15px rgba(46, 109, 164, 0.3);
+}
 button:disabled{background:var(--ink-light);cursor:not-allowed}
 table{width:100%;border-collapse:collapse;margin-top:20px}
 th{text-align:left;background:var(--bg);padding:15px;font-weight:700;font-size:14px;color:var(--ink-muted)}
@@ -256,6 +269,38 @@ function log(msg, type = "") {
 
 // 頁面載入後執行初始化
 window.onload = initData;
+/* ── 環境判定與按鈕狀態控管 ── */
+function checkEnvironment() {
+    // 判定是否為本地開發環境 (127.0.0.1 或 localhost)
+    const isLocal = window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost";
+    const scrapeBtn = document.getElementById('scrape-btn');
+    
+    if (!isLocal) {
+        // 1. 禁用按鈕功能
+        scrapeBtn.disabled = true;
+        
+        // 2. 改變樣式使其外觀反灰
+        scrapeBtn.style.backgroundColor = "#9898b0"; // 使用您 CSS 中的 --ink-light 顏色
+        scrapeBtn.style.cursor = "not-allowed";
+        scrapeBtn.style.opacity = "0.6";
+        
+        // 3. 修改文字提示
+        scrapeBtn.textContent = "僅限管理員同步資料";
+        
+        // 4. 加入滑鼠懸停提示 (Tooltip)
+        scrapeBtn.title = "自動抓取功能需連接本地 Python 爬蟲引擎，線上版僅供查詢存檔資料。";
+        
+        // 5. 在日誌框提示
+        if (typeof log === "function") {
+            log("系統訊息：偵測到線上環境，已自動切換至「唯讀查詢模式」。", "success");
+        }
+    } else {
+        log("系統訊息：管理員模式已啟動，可執行自動抓取。");
+    }
+}
+
+// 確保在頁面載入完成後執行檢查
+window.addEventListener('DOMContentLoaded', checkEnvironment);
 
 </script>
 </body>
