@@ -48,16 +48,23 @@ def clean_raw_text(text):
     if tel_m:  data["tel"] = tel_m.group(1).strip()
     if name_m: data["name"] = name_m.group(1).strip()
 
-    # 3. 🌟 智慧判斷「類別」
-    # 優先判斷是否包含「準公共」字眼 (通常出現在園名旁或備註)
-    if "準公共" in text:
+    # 3. 🌟 強化版類別判斷 (更精準的優先權)
+    raw_type_str = type_m.group(1).strip() if type_m else ""
+    
+    # 優先權 1：公立 (名稱或設立別有「公立」)
+    if "公立" in raw_type_str or "公立" in data["name"]:
+        data["type"] = "公立"
+    # 優先權 2：非營利 (名稱或設立別有「非營利」)
+    elif "非營利" in raw_type_str or "非營利" in data["name"]:
+        data["type"] = "非營利"
+    # 優先權 3：準公共 (必須包含「準公共」且明確標註「符合」)
+    elif "準公共" in text and "符合" in text:
         data["type"] = "準公共"
-    elif type_m:
-        t = type_m.group(1).strip()
-        if "公立" in t: data["type"] = "公立"
-        elif "非營利" in t: data["type"] = "非營利"
-        else: data["type"] = "私立"
-        
+    # 優先權 4：其餘皆為私立
+    else:
+        data["type"] = "私立"
+
+
     return data
 
 @app.route('/')
@@ -109,7 +116,7 @@ def api_scrape():
 def run_selenium_scraper(target_district, target_type):
     options = webdriver.ChromeOptions()
     # 🌟 先把 --headless 拿掉，讓您能看到瀏覽器畫面，確認沒有被卡住
-    # options.add_argument('--headless') 
+    # options.add_argument('--headless')
     driver = webdriver.Chrome(options=options)
     
     url = "https://ap.ece.moe.edu.tw/webecems/pubSearch.aspx"

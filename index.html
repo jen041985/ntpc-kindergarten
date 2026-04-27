@@ -137,23 +137,6 @@ let allData = [];            // 存放所有抓到的資料
 let currentFilteredData = []; // 存放目前篩選過的資料 (供匯出使用)
 let isScraping = false;
 
-/* ── 初始化：載入本地 JSON 資料 ── */
-async function initData() {
-    log("正在檢查本地是否有預存的 json 資料...");
-    try {
-        const response = await fetch('preschool-data.json');
-        if (response.ok) {
-            allData = await response.json();
-            log(`✅ 已成功載入本地資料 (${allData.length} 筆)`, "success");
-            render();
-        } else {
-            log("⚠️ 本地無預存資料，請點擊「開始抓取」來同步資料。");
-            document.getElementById('tbody').innerHTML = '<tr><td colspan="6" style="text-align:center; padding:50px; color:var(--ink-light)">目前無資料，請點擊上方按鈕開始抓取</td></tr>';
-        }
-    } catch (e) {
-        log("提示：目前尚無存檔資料。");
-    }
-}
 
 /* ── 核心功能：開始抓取 ── */
 async function startScrape() {
@@ -277,18 +260,15 @@ async function initData() {
     try {
         const response = await fetch('preschool-data.json');
         if (response.ok) {
-            const data = await response.json();
-            // 合併既有的非營利資料
-            scrapedData = data; 
-            log(`✅ 已成功載入資料庫 (${getAllData().length} 筆)`, "success");
+            allData = await response.json();
+            log(`✅ 已成功載入資料庫 (${allData.length} 筆)`, "success");
             render();
         } else {
-            log("⚠️ 線上資料庫尚未更新，目前顯示預設資料。");
-            render(); // 至少畫出預設的非營利資料
+            log("⚠️ 本地無預存資料，請點擊「開始抓取」來同步資料。");
+            document.getElementById('tbody').innerHTML = '<tr><td colspan="6" style="text-align:center; padding:50px; color:var(--ink-light)">目前無資料，請點擊上方按鈕開始抓取</td></tr>';
         }
     } catch (e) {
-        log("提示：尚未上傳 JSON 資料庫。");
-        render();
+        log("提示：目前尚無存檔資料。");
     }
 }
 
